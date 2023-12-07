@@ -879,7 +879,7 @@ bool Application::render()
 
       if (m_iterationIndex == 2) {
           cuLaunchKernel(m_funcSecondary,        // CUfunction f,
-                         NUM_BLOCKS,                    // unsigned int gridDimX, // Try this with
+                         NUM_BLOCKS,             // unsigned int gridDimX,
                          1,                      // unsigned int gridDimY,
                          1,                      // unsigned int gridDimZ,
                          128,                    // unsigned int blockDimX,
