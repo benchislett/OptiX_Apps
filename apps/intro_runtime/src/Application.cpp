@@ -774,10 +774,31 @@ bool Application::initOptiX()
     return false;
   }
 
-  cuErr = cudaStreamCreate(&m_cudaStream);
-  if (cuErr != cudaSuccess)
+  cuRes = cuStreamCreate(&m_cudaStream, CU_STREAM_NON_BLOCKING);
+  if (cuRes != CUDA_SUCCESS)
   {
     std::cerr << "ERROR: initOptiX() cudaStreamCreate() failed: " << cuErr << '\n';
+    return false;
+  }
+
+  cuRes = cuStreamCreate(&m_cudaStreamSecondary, CU_STREAM_NON_BLOCKING);
+  if (cuRes != CUDA_SUCCESS)
+  {
+    std::cerr << "ERROR: initOptiX() cudaStreamCreate() failed: " << cuRes << '\n';
+    return false;
+  }
+
+  cuRes = cuModuleLoad(&m_moduleSecondary, "./intro_runtime_core/kernel.ptx");
+    if (cuRes != CUDA_SUCCESS)
+  {
+    std::cerr << "ERROR: initOptiX() cuModuleLoad() failed: " << cuRes << '\n';
+    return false;
+  }
+
+  cuRes = cuModuleGetFunction(&m_funcSecondary, m_moduleSecondary, "kernel");
+    if (cuRes != CUDA_SUCCESS)
+  {
+    std::cerr << "ERROR: initOptiX() cuModuleGetFunction() failed: " << cuRes << '\n';
     return false;
   }
 
@@ -850,6 +871,25 @@ bool Application::render()
       CUDA_CHECK( cudaMemcpy((void*) &m_d_systemParameter->outputBuffer, &m_systemParameter.outputBuffer, sizeof(void*), cudaMemcpyHostToDevice) );
 
       OPTIX_CHECK( m_api.optixLaunch(m_pipeline, m_cudaStream, (CUdeviceptr) m_d_systemParameter, sizeof(SystemParameter), &m_sbt, m_width, m_height, 1) );
+
+      void* args[1] = {nullptr};
+
+      unsigned int NUM_BLOCKS = 128;
+      // Try this with NUM_BLOCKS <= 37
+
+      if (m_iterationIndex == 2) {
+          cuLaunchKernel(m_funcSecondary,        // CUfunction f,
+                         NUM_BLOCKS,                    // unsigned int gridDimX, // Try this with
+                         1,                      // unsigned int gridDimY,
+                         1,                      // unsigned int gridDimZ,
+                         128,                    // unsigned int blockDimX,
+                         1,                      // unsigned int blockDimY,
+                         1,                      // unsigned int blockDimZ,
+                         0,                      // unsigned int sharedMemBytes,
+                         m_cudaStreamSecondary,  // CUstream hStream,
+                         (void**)args,           // void **kernelParams,
+                         nullptr);               // void **extra
+      }
       
       CUDA_CHECK( cudaGraphicsUnmapResources(1, &m_cudaGraphicsResource, m_cudaStream) );
     }
@@ -904,6 +944,9 @@ bool Application::render()
     std::cout << stream.str() << '\n';
 
     m_presentNext = true; // Present at least every second.
+
+    // Quit the program automatically for easy profiling
+    exit(0);
   }
   
   return repaint;

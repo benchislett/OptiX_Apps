@@ -327,6 +327,10 @@ private:
   CUcontext m_cudaContext;
   CUstream  m_cudaStream;
 
+  CUstream  m_cudaStreamSecondary;
+  CUfunction m_funcSecondary;
+  CUmodule m_moduleSecondary;
+
   // The handle for the registered OpenGL PBO when using interop.
   cudaGraphicsResource* m_cudaGraphicsResource;
 
